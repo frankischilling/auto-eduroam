@@ -36,41 +36,122 @@ USERNAME="username@uni.edu"   # Typically 'username@domain'
 PASSWORD="password"
 INTERFACE="wlan0"             # Your Wi-Fi device (check with 'iw dev' or 'nmcli dev status')
 
-#############################
-#   CHECK nmcli INSTALLED   #
-#############################
+##################################
+#     CHECK nmcli INSTALLED      #
+##################################
 if ! command -v nmcli &>/dev/null; then
   echo -e "${YELLOW}[!] nmcli not found. Attempting to install NetworkManager...${NC}"
+
+  # Check if /etc/os-release exists
   if [ -f /etc/os-release ]; then
     . /etc/os-release
+
+    # Some distros use ID_LIKE, so we can consider it in fallback logic if needed
+    if [ -z "${ID}" ] && [ -n "${ID_LIKE}" ]; then
+      ID="${ID_LIKE}"
+    fi
+
     case "$ID" in
-      ubuntu|debian)
+      ####################################################
+      #  Debian-based: Ubuntu, Debian, Mint, Pop, Kali   #
+      ####################################################
+      ubuntu|debian|linuxmint|pop|elementary|raspbian|kali|neon)
         echo "[+] Installing NetworkManager on $ID..."
         sudo apt-get update
         sudo apt-get install -y network-manager
         ;;
-      fedora|centos|rhel)
+
+      #######################################################
+      #  Fedora, Red Hat, CentOS, Rocky, Alma, Oracle, etc. #
+      #######################################################
+      fedora|centos|rhel|rocky|alma|ol)
         echo "[+] Installing NetworkManager on $ID..."
         sudo dnf install -y NetworkManager
         ;;
-      arch)
-        echo "[+] Installing NetworkManager on $ID..."
-        sudo pacman -Sy --noconfirm networkmanager
-        ;;
+
+      ########################
+      #  openSUSE / SLES     #
+      ########################
       opensuse*|sles)
         echo "[+] Installing NetworkManager on $ID..."
         sudo zypper install -y NetworkManager
         ;;
+
+      ########################
+      #  Arch / Manjaro      #
+      ########################
+      arch|manjaro|endeavouros)
+        echo "[+] Installing NetworkManager on $ID..."
+        sudo pacman -Sy --noconfirm networkmanager
+        ;;
+
+      ###############
+      #   Gentoo     #
+      ###############
+      gentoo)
+        echo "[+] Installing NetworkManager on $ID..."
+        # Emerge may prompt for confirmation unless you use --ask=n
+        sudo emerge --ask=n net-misc/networkmanager
+        ;;
+
+      ###############
+      #   Alpine     #
+      ###############
+      alpine)
+        echo "[+] Installing NetworkManager on $ID..."
+        sudo apk update
+        sudo apk add networkmanager
+        ;;
+
+      ########################
+      #  Void Linux (xbps)   #
+      ########################
+      void)
+        echo "[+] Installing NetworkManager on $ID..."
+        sudo xbps-install -S networkmanager
+        ;;
+
+      ########################
+      #   Clear Linux (swupd)#
+      ########################
+      clear-linux-os|clear-linux)
+        echo "[+] Installing NetworkManager on $ID..."
+        sudo swupd bundle-add networkmanager
+        ;;
+
+      ###############
+      #   Slackware  #
+      ###############
+      slackware)
+        echo -e "${YELLOW}[!] Slackware typically doesn't use a standard package manager by default.${NC}"
+        echo -e "${YELLOW}    You may need to use slackpkg or a SlackBuild to install NetworkManager.${NC}"
+        exit 1
+        ;;
+
+      ###############
+      #   Unknown    #
+      ###############
       *)
-        echo -e "${RED}[-] Unable to detect or unsupported distro. Please install NetworkManager manually.${NC}"
+        echo -e "${RED}[-] Unable to detect or unsupported distro ($ID). Please install NetworkManager manually.${NC}"
         exit 1
         ;;
     esac
+
+    # Try to start/restart NetworkManager after installation
+    echo "[+] Restarting NetworkManager service..."
+    if command -v systemctl &>/dev/null; then
+      sudo systemctl enable NetworkManager --now
+    else
+      sudo service NetworkManager restart
+    fi
+
   else
     echo -e "${RED}[-] /etc/os-release not found. Please install NetworkManager manually.${NC}"
     exit 1
   fi
 fi
+
+echo -e "${GREEN}[+] nmcli (NetworkManager) is installed or has been successfully installed.${NC}"
 
 #############################
 #    SCAN & VALIDATE SSID   #
@@ -144,7 +225,6 @@ $$$$$$$$\ $$$$$$$$\  $$$$$$\ $$$$$$$$\
    $$ |   $$ |      $$\   $$ |  $$ |                                           
    $$ |   $$$$$$$$\ \$$$$$$  |  $$ |                                           
    \__|   \________| \______/   \__|                                           
-                                                                               
 EOF
   echo -e "${NC}"
 
