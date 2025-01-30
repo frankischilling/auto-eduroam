@@ -21,15 +21,28 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 #
 
-# Variables
-SSID="eduroam"
-USERNAME="username@uni.edu"  # Typically 'username@domain'
-PASSWORD="password"
-INTERFACE="wlan0"            # Your Wi-Fi device (check with 'iw dev' or 'nmcli dev status')
+#############################
+#       COLOR VARIABLES     #
+#############################
+RED="\e[31m"
+GREEN="\e[32m"
+YELLOW="\e[33m"
+CYAN="\e[36m"
+NC="\e[0m"   # No Color / Reset
 
-# Check if nmcli is installed; if not, detect distro and install
+#############################
+#       USER VARIABLES      #
+#############################
+SSID="eduroam"
+USERNAME="username@uni.edu"   # Typically 'username@domain'
+PASSWORD="password"
+INTERFACE="wlan0"             # Your Wi-Fi device (check with 'iw dev' or 'nmcli dev status')
+
+#############################
+#   CHECK nmcli INSTALLED   #
+#############################
 if ! command -v nmcli &>/dev/null; then
-  echo "[!] nmcli not found. Attempting to install NetworkManager..."
+  echo -e "${YELLOW}[!] nmcli not found. Attempting to install NetworkManager...${NC}"
   if [ -f /etc/os-release ]; then
     . /etc/os-release
     case "$ID" in
@@ -51,34 +64,40 @@ if ! command -v nmcli &>/dev/null; then
         sudo zypper install -y NetworkManager
         ;;
       *)
-        echo "[-] Unable to detect or unsupported distro. Please install NetworkManager manually."
+        echo -e "${RED}[-] Unable to detect or unsupported distro. Please install NetworkManager manually.${NC}"
         exit 1
         ;;
     esac
   else
-    echo "[-] /etc/os-release not found. Please install NetworkManager manually."
+    echo -e "${RED}[-] /etc/os-release not found. Please install NetworkManager manually.${NC}"
     exit 1
   fi
 fi
 
+#############################
+#    SCAN & VALIDATE SSID   #
+#############################
 echo "[+] Scanning for Wi-Fi networks..."
 nmcli dev wifi rescan
 sleep 2  # Wait for scan results
 
-# Verify that eduroam is in range
 if ! nmcli dev wifi list | grep -w "$SSID" >/dev/null 2>&1; then
-  echo "[-] SSID '$SSID' not found in scan results."
+  echo -e "${RED}[-] SSID '$SSID' not found in scan results.${NC}"
   exit 1
 fi
-echo "[+] '$SSID' is in range!"
+echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
 
-# If an old profile named "eduroam" exists, remove it first
+######################################
+#  REMOVE OLD PROFILE IF IT EXISTS   #
+######################################
 if nmcli -f name,type connection show | grep -q "^$SSID\s.*wifi"; then
-  echo "[+] Removing old '$SSID' connection profile."
+  echo "[+] Removing old '$SSID' connection profile..."
   nmcli connection delete "$SSID"
 fi
 
-# Create a new eduroam connection profile with WPA-EAP (PEAP + MSCHAPv2)
+################################
+#   CREATE NEW eduroam PROFILE #
+################################
 echo "[+] Creating a new '$SSID' connection profile..."
 nmcli connection add \
   type wifi \
@@ -99,12 +118,50 @@ nmcli connection add \
 # Optional: ensure password is stored (not prompted), by disabling 'secret flags'
 nmcli connection modify "$SSID" 802-1x.password-flags 0
 
-# Bring up the new connection
+#############################
+#     ACTIVATE CONNECTION   #
+#############################
 echo "[+] Bringing up connection '$SSID'..."
 nmcli connection up "$SSID"
 if [[ $? -eq 0 ]]; then
-  echo "[+] Successfully connected to '$SSID'!"
+  echo -e "${GREEN}[+] Successfully connected to '$SSID'!${NC}"
+  
+  # ASCII Banner
+  echo -e "${CYAN}"
+  cat << "EOF"
+$$\   $$\ $$$$$$$$\ $$$$$$$$\ $$\      $$\  $$$$$$\  $$$$$$$\  $$\   $$\       
+$$$\  $$ |$$  _____|\__$$  __|$$ | $\  $$ |$$  __$$\ $$  __$$\ $$ | $$  |      
+$$$$\ $$ |$$ |         $$ |   $$ |$$$\ $$ |$$ /  $$ |$$ |  $$ |$$ |$$  /       
+$$ $$\$$ |$$$$$\       $$ |   $$ $$ $$\$$ |$$ |  $$ |$$$$$$$  |$$$$$  /        
+$$ \$$$$ |$$  __|      $$ |   $$$$  _$$$$ |$$ |  $$ |$$  __$$< $$  $$<         
+$$ |\$$$ |$$ |         $$ |   $$$  / \$$$ |$$ |  $$ |$$ |  $$ |$$ |\$$\        
+$$ | \$$ |$$$$$$$$\    $$ |   $$  /   \$$ | $$$$$$  |$$ |  $$ |$$ | \$$\       
+\__|  \__|\________|   \__|   \__/     \__| \______/ \__|  \__|\__|  \__|      
+                                                                               
+$$$$$$$$\ $$$$$$$$\  $$$$$$\ $$$$$$$$\                                         
+\__$$  __|$$  _____|$$  __$$\\__$$  __|                                        
+   $$ |   $$ |      $$ /  \__|  $$ |                                           
+   $$ |   $$$$$\    \$$$$$$\    $$ |                                           
+   $$ |   $$  __|    \____$$\   $$ |                                           
+   $$ |   $$ |      $$\   $$ |  $$ |                                           
+   $$ |   $$$$$$$$\ \$$$$$$  |  $$ |                                           
+   \__|   \________| \______/   \__|                                           
+                                                                               
+EOF
+  echo -e "${NC}"
+
+  #############################
+  # TEST NETWORK CONNECTIVITY #
+  #############################
+  echo -e "[+] Testing internet connectivity (ping 8.8.8.8)..."
+  ping -c 3 8.8.8.8 >/dev/null 2>&1
+  if [[ $? -eq 0 ]]; then
+    echo -e "${GREEN}[+] Connection test successful! You are online.${NC}"
+  else
+    echo -e "${RED}[-] Connection test failed. Check your internet settings or firewall.${NC}"
+  fi
+
 else
-  echo "[-] Failed to connect to '$SSID'."
+  echo -e "${RED}[-] Failed to connect to '$SSID'.${NC}"
   exit 1
 fi
