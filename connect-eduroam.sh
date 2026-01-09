@@ -188,6 +188,7 @@ nmcli connection add \
   802-1x.identity "$USERNAME" \
   802-1x.password "$PASSWORD" \
   802-1x.phase2-auth mschapv2 
+  # android with uses anon, but on Linux the script works fine without anon. 
   # 802-1x.anonymous-identity "anonymous@university.edu"
   # 802-1x.altsubject-matches "DNS:radius.youruniversity.edu"
   # 802-1x.domain-suffix-match "youruniversity.edu"
