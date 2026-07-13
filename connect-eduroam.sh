@@ -34,7 +34,6 @@ NC="\e[0m"   # No Color / Reset
 SSID="eduroam"
 USERNAME="username@uni.edu"   # Typically 'username@domain'
 PASSWORD="password"
-INTERFACE="wlan0"             # Your Wi-Fi device (check with 'iw dev' or 'nmcli dev status')
 
 ##################################
 #     CHECK nmcli INSTALLED      #
@@ -153,23 +152,10 @@ fi
 
 echo -e "${GREEN}[+] nmcli (NetworkManager) is installed or has been successfully installed.${NC}"
 
-#############################
-#    SCAN & VALIDATE SSID   #
-#############################
-echo "[+] Scanning for Wi-Fi networks..."
-nmcli dev wifi rescan
-sleep 2  # Wait for scan results
-
-if ! nmcli dev wifi list | grep -w "$SSID" >/dev/null 2>&1; then
-  echo -e "${RED}[-] SSID '$SSID' not found in scan results.${NC}"
-  exit 1
-fi
-echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
-
 ############################################
 #  AUTOMATICALLY FIND WIFI INTERFACE NAME  #
 ############################################
-wifi_interfaces=($(nmcli -t -f DEVICE,TYPE device status | awk -F: '$2=="wifi"{print $1}'))
+mapfile -t wifi_interfaces < <(nmcli -t -f DEVICE,TYPE device status | awk -F: '$2=="wifi"{print $1}')
 
 if [ ${#wifi_interfaces[@]} -eq 0 ]; then
     echo -e "${RED}[-] No wireless interfaces found.${NC}" >&2
@@ -184,13 +170,39 @@ else
     done
 fi
 
+if [ -z "$INTERFACE" ]; then
+    echo -e "${RED}[-] No wireless interface selected.${NC}" >&2
+    exit 1
+fi
+
+#############################
+#    SCAN & VALIDATE SSID   #
+#############################
+echo "[+] Scanning for Wi-Fi networks..."
+nmcli dev wifi rescan ifname "$INTERFACE"
+sleep 2  # Wait for scan results
+
+if ! nmcli dev wifi list ifname "$INTERFACE" | grep -w "$SSID" >/dev/null 2>&1; then
+  echo -e "${RED}[-] SSID '$SSID' not found in scan results.${NC}"
+  exit 1
+fi
+echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
+
 #############################
 #  PROMPT FOR CREDENTIALS   #
 #############################
-read -p "[+] Enter your email: " USERNAME
-read -s -p "[+] Enter your password: " PASSWORD
+IFS= read -r -p "[+] Enter your email: " USERNAME
+if [ -z "$USERNAME" ]; then
+  echo -e "${RED}[-] Username cannot be empty.${NC}" >&2
+  exit 1
+fi
+
+IFS= read -r -s -p "[+] Enter your password: " PASSWORD
 echo
-exit 0
+if [ -z "$PASSWORD" ]; then
+  echo -e "${RED}[-] Password cannot be empty.${NC}" >&2
+  exit 1
+fi
 
 ######################################
 #  REMOVE OLD PROFILE IF IT EXISTS   #
