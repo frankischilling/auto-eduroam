@@ -7,10 +7,11 @@
 This script connects your Linux machine to your university’s Wi-Fi (eduroam) which typically uses WPA2-Enterprise with PEAP/MSCHAPv2 authentication. By leveraging **NetworkManager** and its command-line interface tool **nmcli**, the script:
 
 1. Scans for the desired network SSID (e.g., `"eduroam"`).
-2. Checks if a previous profile exists and removes it (if found).
-3. Creates a new connection profile with the proper 802.1x settings.
-4. Brings up (activates) the new connection.
-5. Can optionally install NetworkManager if it is not already present, by detecting the distribution and using the appropriate package manager.
+2. Prompts for credentials
+3. Checks if a previous profile exists and removes it (if found).
+4. Creates a new connection profile with the proper 802.1x settings.
+5. Brings up (activates) the new connection.
+6. Can optionally install NetworkManager if it is not already present, by detecting the distribution and using the appropriate package manager.
 
 ---
 
@@ -36,13 +37,17 @@ This script connects your Linux machine to your university’s Wi-Fi (eduroam) w
 3. **Edit Script Variables**  
    Open the script in a text editor:
    - `SSID="eduroam"` — change if your network uses a different name.
-   - `USERNAME="username@uni.edu"` — your eduroam/uni username.
-   - `PASSWORD="password"` — your Wi-Fi password.
-   - `INTERFACE="wlan0"` — update to match your Wi-Fi interface (check with `nmcli dev status` or `iw dev`).
 
 4. **Run the Script**  
    ```bash
    ./connect-eduroam.sh
+   ```
+
+5. **Enter your credentials:**
+   The script will ask for email and a password. Provide both
+   ```bash
+   [+] Enter your email: username@uni.edu
+   [+] Enter your password:
    ```
 
 5. **Verify Connection**  

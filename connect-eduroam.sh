@@ -166,6 +166,32 @@ if ! nmcli dev wifi list | grep -w "$SSID" >/dev/null 2>&1; then
 fi
 echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
 
+############################################
+#  AUTOMATICALLY FIND WIFI INTERFACE NAME  #
+############################################
+wifi_interfaces=($(nmcli -t -f DEVICE,TYPE device status | awk -F: '$2=="wifi"{print $1}'))
+
+if [ ${#wifi_interfaces[@]} -eq 0 ]; then
+    echo -e "${RED}[-] No wireless interfaces found.${NC}" >&2
+    exit 1
+elif [ ${#wifi_interfaces[@]} -eq 1 ]; then
+    INTERFACE="${wifi_interfaces[0]}"
+else
+    echo -e "${YELLOW}[!] Multiple wireless interfaces found:${NC}"
+    PS3="Select an interface number: "
+    select INTERFACE in "${wifi_interfaces[@]}"; do
+        [ -n "$INTERFACE" ] && break
+    done
+fi
+
+#############################
+#  PROMPT FOR CREDENTIALS   #
+#############################
+read -p "[+] Enter your email: " USERNAME
+read -s -p "[+] Enter your password: " PASSWORD
+echo
+exit 0
+
 ######################################
 #  REMOVE OLD PROFILE IF IT EXISTS   #
 ######################################
