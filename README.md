@@ -51,7 +51,7 @@ This script connects your Linux machine to your university’s Wi-Fi (eduroam) w
    [+] Enter your password:
    ```
 
-6. **Verify Connection**  
+6. **Verify Connection**
    Once the script completes, you should see a message indicating a successful connection. Verify by running:
    ```bash
    nmcli connection show --active
@@ -77,7 +77,7 @@ This script connects your Linux machine to your university’s Wi-Fi (eduroam) w
 
    Uncomment and adjust these lines in the script if your institution requires them.
 
-3. **Unsupported Distro**  
+3. **Unsupported Distro**
    - If the script cannot detect your distribution or fails to install **NetworkManager**, you must manually install or enable **NetworkManager** before running the script.
    - Please make an issue with your distribution and I can add support
 

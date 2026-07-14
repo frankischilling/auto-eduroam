@@ -32,8 +32,6 @@ NC="\e[0m"   # No Color / Reset
 #       USER VARIABLES      #
 #############################
 SSID="eduroam"
-USERNAME="username@uni.edu"   # Typically 'username@domain'
-PASSWORD="password"
 
 ##################################
 #     CHECK nmcli INSTALLED      #
@@ -191,16 +189,17 @@ echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
 #############################
 #  PROMPT FOR CREDENTIALS   #
 #############################
-IFS= read -r -p "[+] Enter your email: " USERNAME
-if [ -z "$USERNAME" ]; then
-  echo -e "${RED}[-] Username cannot be empty.${NC}" >&2
+if ! IFS= read -r -p "[+] Enter your email: " USERNAME || [[ -z "$USERNAME" ]]; then
+  echo -e "${RED}[-] Failed to read a valid username.${NC}" >&2
   exit 1
 fi
 
 IFS= read -r -s -p "[+] Enter your password: " PASSWORD
+read_status=$?
 echo
-if [ -z "$PASSWORD" ]; then
-  echo -e "${RED}[-] Password cannot be empty.${NC}" >&2
+
+if (( read_status !=0 )) || [[ -z "$PASSWORD" ]]; then
+  echo -e "${RED}[-] Failed to read a valid password.${NC}" >&2
   exit 1
 fi
 
@@ -240,8 +239,7 @@ nmcli connection modify "$SSID" 802-1x.password-flags 0
 #     ACTIVATE CONNECTION   #
 #############################
 echo "[+] Bringing up connection '$SSID'..."
-nmcli connection up "$SSID"
-if [[ $? -eq 0 ]]; then
+if nmcli connection up "$SSID"; then
   echo -e "${GREEN}[+] Successfully connected to '$SSID'!${NC}"
   
   # ASCII Banner
@@ -271,8 +269,7 @@ EOF
   # TEST NETWORK CONNECTIVITY #
   #############################
   echo -e "[+] Testing internet connectivity (ping 8.8.8.8)..."
-  ping -c 3 8.8.8.8 >/dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  if ping -c 3 8.8.8.8 >/dev/null 2>&1; then
     echo -e "${GREEN}[+] Connection test successful! You are online.${NC}"
   else
     echo -e "${RED}[-] Connection test failed. Check your internet settings or firewall.${NC}"
