@@ -32,9 +32,6 @@ NC="\e[0m"   # No Color / Reset
 #       USER VARIABLES      #
 #############################
 SSID="eduroam"
-USERNAME="username@uni.edu"   # Typically 'username@domain'
-PASSWORD="password"
-INTERFACE="wlan0"             # Your Wi-Fi device (check with 'iw dev' or 'nmcli dev status')
 
 ##################################
 #     CHECK nmcli INSTALLED      #
@@ -153,18 +150,58 @@ fi
 
 echo -e "${GREEN}[+] nmcli (NetworkManager) is installed or has been successfully installed.${NC}"
 
+############################################
+#  AUTOMATICALLY FIND WIFI INTERFACE NAME  #
+############################################
+mapfile -t wifi_interfaces < <(nmcli -t -f DEVICE,TYPE device status | awk -F: '$2=="wifi"{print $1}')
+
+if [ ${#wifi_interfaces[@]} -eq 0 ]; then
+    echo -e "${RED}[-] No wireless interfaces found.${NC}" >&2
+    exit 1
+elif [ ${#wifi_interfaces[@]} -eq 1 ]; then
+    INTERFACE="${wifi_interfaces[0]}"
+else
+    echo -e "${YELLOW}[!] Multiple wireless interfaces found:${NC}"
+    PS3="Select an interface number: "
+    select INTERFACE in "${wifi_interfaces[@]}"; do
+        [ -n "$INTERFACE" ] && break
+    done
+fi
+
+if [ -z "$INTERFACE" ]; then
+    echo -e "${RED}[-] No wireless interface selected.${NC}" >&2
+    exit 1
+fi
+
 #############################
 #    SCAN & VALIDATE SSID   #
 #############################
 echo "[+] Scanning for Wi-Fi networks..."
-nmcli dev wifi rescan
+nmcli dev wifi rescan ifname "$INTERFACE"
 sleep 2  # Wait for scan results
 
-if ! nmcli dev wifi list | grep -w "$SSID" >/dev/null 2>&1; then
+if ! nmcli dev wifi list ifname "$INTERFACE" | grep -w "$SSID" >/dev/null 2>&1; then
   echo -e "${RED}[-] SSID '$SSID' not found in scan results.${NC}"
   exit 1
 fi
 echo -e "${GREEN}[+] '$SSID' is in range!${NC}"
+
+#############################
+#  PROMPT FOR CREDENTIALS   #
+#############################
+if ! IFS= read -r -p "[+] Enter your email: " USERNAME || [[ -z "$USERNAME" ]]; then
+  echo -e "${RED}[-] Failed to read a valid username.${NC}" >&2
+  exit 1
+fi
+
+IFS= read -r -s -p "[+] Enter your password: " PASSWORD
+read_status=$?
+echo
+
+if (( read_status !=0 )) || [[ -z "$PASSWORD" ]]; then
+  echo -e "${RED}[-] Failed to read a valid password.${NC}" >&2
+  exit 1
+fi
 
 ######################################
 #  REMOVE OLD PROFILE IF IT EXISTS   #
@@ -202,8 +239,7 @@ nmcli connection modify "$SSID" 802-1x.password-flags 0
 #     ACTIVATE CONNECTION   #
 #############################
 echo "[+] Bringing up connection '$SSID'..."
-nmcli connection up "$SSID"
-if [[ $? -eq 0 ]]; then
+if nmcli connection up "$SSID"; then
   echo -e "${GREEN}[+] Successfully connected to '$SSID'!${NC}"
   
   # ASCII Banner
@@ -233,8 +269,7 @@ EOF
   # TEST NETWORK CONNECTIVITY #
   #############################
   echo -e "[+] Testing internet connectivity (ping 8.8.8.8)..."
-  ping -c 3 8.8.8.8 >/dev/null 2>&1
-  if [[ $? -eq 0 ]]; then
+  if ping -c 3 8.8.8.8 >/dev/null 2>&1; then
     echo -e "${GREEN}[+] Connection test successful! You are online.${NC}"
   else
     echo -e "${RED}[-] Connection test failed. Check your internet settings or firewall.${NC}"
